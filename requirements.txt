@@ -3,3 +3,4 @@ pyppeteer
 asyncio
 requests
 mcp
+cloudinary
