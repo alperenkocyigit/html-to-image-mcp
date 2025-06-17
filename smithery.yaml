@@ -5,9 +5,29 @@ startCommand:
   commandFunction:
     # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
     |-
-    (config) => ({command: 'python', args: ['server.py'], env: {}})
+    (config) => ({command: 'python', args: ['server.py'], env: {
+      CLOUDINARY_CLOUD_NAME: config.CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY: config.CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET: config.CLOUDINARY_API_SECRET
+    }});
   configSchema:
     # JSON Schema defining the configuration options for the MCP.
     type: object
-    properties: {}
-  exampleConfig: {}
+    properties: 
+      CLOUDINARY_CLOUD_NAME:
+        type: string
+        description: The Cloudinary cloud name.
+      CLOUDINARY_API_KEY:
+        type: string
+        description: The Cloudinary API key.
+      CLOUDINARY_API_SECRET:
+        type: string
+        description: The Cloudinary API secret.
+    required:
+      - CLOUDINARY_CLOUD_NAME
+      - CLOUDINARY_API_KEY
+      - CLOUDINARY_API_SECRET
+  exampleConfig: 
+    Cloudinary_CLOUD_NAME: 'your-cloudinary-name'
+    Cloudinary_API_KEY: 'your-api-key'
+    Cloudinary_API_SECRET: 'your-api-secret'
