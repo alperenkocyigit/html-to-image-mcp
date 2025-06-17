@@ -7,7 +7,7 @@ from pyppeteer import launch
 import cloudinary
 import cloudinary.uploader
 
-# 1) Cloudinary konfigürasyonu (env var’lardan)
+# 1) Cloudinary konfigürasyonu (env var'lardan)
 cloudinary.config( 
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -38,14 +38,13 @@ async def _capture_png_bytes(url: str, width: int = 1280, height: int = 720) -> 
     await browser.close()
     return img_bytes
 
-def url_to_cloudinary_url(url: str, folder: str = "screenshots") -> str:
+async def url_to_cloudinary_url_async(url: str, folder: str = "screenshots") -> str:
     """
-    Senkron wrapper:
-        >>> url_to_cloudinary_url("https://www.alperenkocyigit.github.io")
-    return: Cloudinary üzerindeki public CDN linki
+    Async version:
+    Siteyi screenshot alıp Cloudinary'e yükler
     """
     # 1) Sayfanın 1280×720 ekran görüntüsünü al (bytes)
-    img_bytes = asyncio.get_event_loop().run_until_complete(_capture_png_bytes(url))
+    img_bytes = await _capture_png_bytes(url)
 
     # 2) BytesIO'a sar, Cloudinary'a yükle
     byte_stream = io.BytesIO(img_bytes)
@@ -62,3 +61,18 @@ def url_to_cloudinary_url(url: str, folder: str = "screenshots") -> str:
 
     # 3) secure_url alanını döndür
     return upload_result["secure_url"]
+
+def url_to_cloudinary_url(url: str, folder: str = "screenshots") -> str:
+    """
+    Senkron wrapper - sadece geriye dönük uyumluluk için
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        # Eğer zaten bir loop varsa, task olarak çalıştır
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, url_to_cloudinary_url_async(url, folder))
+            return future.result()
+    except RuntimeError:
+        # Eğer running loop yoksa, normal şekilde çalıştır
+        return asyncio.run(url_to_cloudinary_url_async(url, folder))

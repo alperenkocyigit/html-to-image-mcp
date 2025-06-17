@@ -1,6 +1,5 @@
-fastapi
 pyppeteer
-asyncio
-requests
 mcp
+python-dotenv
 cloudinary
+pydantic

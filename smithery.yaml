@@ -1,9 +1,22 @@
 # Smithery configuration file: https://smithery.ai/docs/build/project-config
 
+# Use container runtime for Python projects
+runtime: "container"
+
+# Build configuration
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+
+# Setup command to download Chromium
+setupCommand:
+  type: shell
+  command: python setup.py
+
+# Start command configuration for STDIO transport
 startCommand:
   type: stdio
   configSchema:
-    # JSON Schema defining the configuration options for the MCP.
     type: object
     required:
       - cloudinaryCloudName
@@ -12,12 +25,15 @@ startCommand:
     properties:
       cloudinaryCloudName:
         type: string
+        title: "Cloudinary Cloud Name"
         description: Your Cloudinary cloud name from your dashboard
       cloudinaryApiKey:
         type: string
+        title: "Cloudinary API Key"
         description: Your Cloudinary API key from your dashboard
       cloudinaryApiSecret:
         type: string
+        title: "Cloudinary API Secret"
         description: Your Cloudinary API secret from your dashboard
   commandFunction:
     # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
