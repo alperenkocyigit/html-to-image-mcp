@@ -16,6 +16,7 @@ from mcp.server import NotificationOptions, Server
 import mcp.server.stdio
 from pydantic import AnyUrl
 from pyppeteer import launch
+import json
 
 # Load environment variables
 load_dotenv()
@@ -30,16 +31,12 @@ cloudinary.config(
 server = Server("html-to-image")
 
 def is_valid_url(url: str) -> bool:
-    """Validate if the URL is properly formatted"""
+    """Validate if the URL is properly formatted and starts with http:// or https://"""
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc]) and result.scheme in ['http', 'https']
     except Exception:
         return False
-
-def is_valid_html(content: str) -> bool:
-    """Basic HTML validation"""
-    return isinstance(content, str) and len(content.strip()) > 0
 
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
@@ -47,38 +44,31 @@ async def handle_list_tools() -> list[types.Tool]:
     return [
         types.Tool(
             name="take_screenshot",
-            description="Take a screenshot of a webpage or HTML content and upload to Cloudinary",
+            description="Take a screenshot of a webpage by providing its URL and upload to Cloudinary. The URL must be a valid web address starting with https:// or http://",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "URL of the webpage to screenshot"
-                    },
-                    "html": {
-                        "type": "string",
-                        "description": "HTML content to render and screenshot"
+                        "description": "URL of the webpage to screenshot. Must be a valid web address starting with https:// or http://"
                     },
                     "width": {
                         "type": "integer",
-                        "description": "Viewport width in pixels",
+                        "description": "Viewport width in pixels (optional, default: 1280)",
                         "default": 1280
                     },
                     "height": {
                         "type": "integer",
-                        "description": "Viewport height in pixels",
+                        "description": "Viewport height in pixels (optional, default: 720)",
                         "default": 720
                     },
                     "fullPage": {
                         "type": "boolean",
-                        "description": "Capture full page height",
+                        "description": "Capture full page height instead of viewport only (optional, default: false)",
                         "default": False
                     }
                 },
-                "oneOf": [
-                    {"required": ["url"]},
-                    {"required": ["html"]}
-                ]
+                "required": ["url"]
             }
         )
     ]
@@ -100,23 +90,16 @@ async def handle_call_tool(
     
     # Extract parameters
     url = arguments.get("url")
-    html = arguments.get("html")
     width = arguments.get("width", 1280)
     height = arguments.get("height", 720)
     full_page = arguments.get("fullPage", False)
     
-    # Validate input
-    if not url and not html:
-        raise ValueError("Either 'url' or 'html' parameter is required")
+    # Validate required URL parameter
+    if not url:
+        raise ValueError("The 'url' parameter is required and must be provided")
     
-    if url and html:
-        raise ValueError("Cannot specify both 'url' and 'html' parameters")
-    
-    if url and not is_valid_url(url):
-        raise ValueError(f"Invalid URL format: {url}")
-    
-    if html and not is_valid_html(html):
-        raise ValueError("Invalid HTML content provided")
+    if not is_valid_url(url):
+        raise ValueError(f"Invalid URL format: {url}. URL must be a valid web address starting with https:// or http://")
     
     browser = None
     try:
@@ -137,14 +120,11 @@ async def handle_call_tool(
         page = await browser.newPage()
         await page.setViewport({'width': width, 'height': height})
         
-        # Navigate to URL or set HTML content
-        if url:
-            try:
-                await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
-            except Exception as e:
-                raise ValueError(f"Failed to navigate to URL: {str(e)}")
-        else:
-            await page.setContent(html, {'waitUntil': 'networkidle2'})
+        # Navigate to URL
+        try:
+            await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
+        except Exception as e:
+            raise ValueError(f"Failed to navigate to URL '{url}': {str(e)}. Please ensure the URL is accessible and starts with https:// or http://")
         
         # Take screenshot
         screenshot_options = {
@@ -173,10 +153,21 @@ async def handle_call_tool(
             # Clean up temporary file
             os.unlink(temp_file_path)
             
+            response = {
+                "status": 200,
+                "message": "Screenshot captured and uploaded successfully",
+                "url": upload_result['secure_url'],
+                "public_id": upload_result['public_id'],
+                "dimensions": {
+                    "width": width,
+                    "height": height,
+                    "fullPage": full_page
+                }
+            }
             return [
                 types.TextContent(
                     type="text",
-                    text=f"Screenshot uploaded successfully!\nURL: {upload_result['secure_url']}\nPublic ID: {upload_result['public_id']}"
+                    text=json.dumps(response, indent=2)
                 )
             ]
             
@@ -190,7 +181,7 @@ async def handle_call_tool(
                 await browser.close()
             except:
                 pass
-        raise ValueError(f"Screenshot failed: {str(e)}")
+        raise ValueError(f"Screenshot operation failed: {str(e)}")
 
 async def main():
     # Run the server using stdin/stdout streams
