@@ -36,7 +36,7 @@ startCommand:
         title: "Cloudinary API Secret"
         description: Your Cloudinary API secret from your dashboard
   commandFunction:
-    # A JS function that produces the command to start the MCP server on HTTP (SSE).
+    # A JS function that produces the command to start the MCP server on HTTP (streamable-http).
     |-
     (config) => ({
       command: 'python',
@@ -45,7 +45,7 @@ startCommand:
         CLOUDINARY_CLOUD_NAME: config.cloudinaryCloudName,
         CLOUDINARY_API_KEY: config.cloudinaryApiKey,
         CLOUDINARY_API_SECRET: config.cloudinaryApiSecret,
-        MCP_TRANSPORT: 'sse'
+        MCP_TRANSPORT: 'streamable-http'
       }
     })
   exampleConfig:
