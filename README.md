@@ -72,11 +72,19 @@ https://smithery.ai/server/@alperenkocyigit/html-to-image-mcp
 
 ### Starting the MCP Server
 
+#### For Local Development (STDIO mode)
+```bash
+MCP_TRANSPORT=stdio python server.py
+```
+
+The server will run on STDIO transport for local development and testing.
+
+#### For HTTP Deployment (SSE mode)
 ```bash
 python server.py
 ```
 
-The server will run on STDIO transport, ready to receive MCP requests.
+The server will run on HTTP/SSE transport on `http://0.0.0.0:8000`, suitable for container deployments and hosted environments like Smithery.
 
 ### Tool: `take_screenshot`
 
@@ -270,11 +278,14 @@ docker build -t html-to-image-mcp .
 ```bash
 docker run -d \
   --name html-to-image \
+  -p 8000:8000 \
   -e CLOUDINARY_CLOUD_NAME=your_cloud_name \
   -e CLOUDINARY_API_KEY=your_api_key \
   -e CLOUDINARY_API_SECRET=your_api_secret \
   html-to-image-mcp
 ```
+
+The server will be accessible at `http://localhost:8000` for HTTP/SSE transport.
 
 ### Docker Compose
 
@@ -283,6 +294,8 @@ version: '3.8'
 services:
   html-to-image-mcp:
     build: .
+    ports:
+      - "8000:8000"
     environment:
       - CLOUDINARY_CLOUD_NAME=your_cloud_name
       - CLOUDINARY_API_KEY=your_api_key
