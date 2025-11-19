@@ -13,9 +13,9 @@ setupCommand:
   type: shell
   command: python setup.py
 
-# Start command configuration for STDIO transport
+# Start command configuration for HTTP transport
 startCommand:
-  type: stdio
+  type: http
   configSchema:
     type: object
     required:
@@ -36,7 +36,7 @@ startCommand:
         title: "Cloudinary API Secret"
         description: Your Cloudinary API secret from your dashboard
   commandFunction:
-    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    # A JS function that produces the command to start the MCP server on HTTP (SSE).
     |-
     (config) => ({
       command: 'python',
@@ -44,7 +44,8 @@ startCommand:
       env: {
         CLOUDINARY_CLOUD_NAME: config.cloudinaryCloudName,
         CLOUDINARY_API_KEY: config.cloudinaryApiKey,
-        CLOUDINARY_API_SECRET: config.cloudinaryApiSecret
+        CLOUDINARY_API_SECRET: config.cloudinaryApiSecret,
+        MCP_TRANSPORT: 'sse'
       }
     })
   exampleConfig:
