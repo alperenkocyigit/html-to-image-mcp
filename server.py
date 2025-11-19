@@ -10,10 +10,8 @@ from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
 
-from mcp.server.models import InitializationOptions
 import mcp.types as types
-from mcp.server import NotificationOptions, Server
-import mcp.server.stdio
+from mcp.server import FastMCP
 from pydantic import AnyUrl
 from pyppeteer import launch
 import json
@@ -28,7 +26,12 @@ cloudinary.config(
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
-server = Server("html-to-image")
+# Create FastMCP server with SSE support
+server = FastMCP(
+    "html-to-image",
+    host="0.0.0.0",  # Listen on all interfaces for container deployment
+    port=8000
+)
 
 def is_valid_url(url: str) -> bool:
     """Validate if the URL is properly formatted and starts with http:// or https://"""
@@ -38,66 +41,30 @@ def is_valid_url(url: str) -> bool:
     except Exception:
         return False
 
-@server.list_tools()
-async def handle_list_tools() -> list[types.Tool]:
-    """List available tools"""
-    return [
-        types.Tool(
-            name="take_screenshot",
-            description="Take a screenshot of a webpage by providing its URL and upload to Cloudinary. The URL must be a valid web address starting with https:// or http://",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "URL of the webpage to screenshot. Must be a valid web address starting with https:// or http://"
-                    },
-                    "width": {
-                        "type": "integer",
-                        "description": "Viewport width in pixels (optional, default: 1280)",
-                        "default": 1280
-                    },
-                    "height": {
-                        "type": "integer",
-                        "description": "Viewport height in pixels (optional, default: 720)",
-                        "default": 720
-                    },
-                    "fullPage": {
-                        "type": "boolean",
-                        "description": "Capture full page height instead of viewport only (optional, default: false)",
-                        "default": False
-                    }
-                },
-                "required": ["url"]
-            }
-        )
-    ]
-
-@server.call_tool()
-async def handle_call_tool(
-    name: str, arguments: dict[str, Any] | None
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    """Handle tool calls"""
-    if name != "take_screenshot":
-        raise ValueError(f"Unknown tool: {name}")
+@server.tool()
+async def take_screenshot(
+    url: str,
+    width: int = 1280,
+    height: int = 720,
+    fullPage: bool = False
+) -> str:
+    """
+    Take a screenshot of a webpage by providing its URL and upload to Cloudinary.
     
-    if not arguments:
-        raise ValueError("No arguments provided")
+    Args:
+        url: URL of the webpage to screenshot. Must be a valid web address starting with https:// or http://
+        width: Viewport width in pixels (optional, default: 1280)
+        height: Viewport height in pixels (optional, default: 720)
+        fullPage: Capture full page height instead of viewport only (optional, default: false)
     
+    Returns:
+        JSON string with screenshot information including the Cloudinary URL
+    """
     # Check Cloudinary configuration
     if not all([os.getenv('CLOUDINARY_CLOUD_NAME'), os.getenv('CLOUDINARY_API_KEY'), os.getenv('CLOUDINARY_API_SECRET')]):
         raise ValueError("Cloudinary credentials not found in environment variables")
     
-    # Extract parameters
-    url = arguments.get("url")
-    width = arguments.get("width", 1280)
-    height = arguments.get("height", 720)
-    full_page = arguments.get("fullPage", False)
-    
-    # Validate required URL parameter
-    if not url:
-        raise ValueError("The 'url' parameter is required and must be provided")
-    
+    # Validate URL
     if not is_valid_url(url):
         raise ValueError(f"Invalid URL format: {url}. URL must be a valid web address starting with https:// or http://")
     
@@ -129,7 +96,7 @@ async def handle_call_tool(
         # Take screenshot
         screenshot_options = {
             'type': 'png',
-            'fullPage': full_page
+            'fullPage': fullPage
         }
         
         screenshot_bytes = await page.screenshot(screenshot_options)
@@ -161,15 +128,10 @@ async def handle_call_tool(
                 "dimensions": {
                     "width": width,
                     "height": height,
-                    "fullPage": full_page
+                    "fullPage": fullPage
                 }
             }
-            return [
-                types.TextContent(
-                    type="text",
-                    text=json.dumps(response, indent=2)
-                )
-            ]
+            return json.dumps(response, indent=2)
             
         except Exception as e:
             raise ValueError(f"Failed to upload screenshot to Cloudinary: {str(e)}")
@@ -183,21 +145,17 @@ async def handle_call_tool(
                 pass
         raise ValueError(f"Screenshot operation failed: {str(e)}")
 
-async def main():
-    # Run the server using stdin/stdout streams
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            InitializationOptions(
-                server_name="html-to-image",
-                server_version="0.1.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={},
-                ),
-            ),
-        )
+def main():
+    """Main entry point for the server"""
+    # Check if we should run in SSE mode (default for container) or stdio mode
+    transport = os.getenv("MCP_TRANSPORT", "sse")
+    
+    if transport == "stdio":
+        # Run in stdio mode for local development
+        server.run(transport="stdio")
+    else:
+        # Run in SSE mode for HTTP deployments
+        server.run(transport="sse")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
