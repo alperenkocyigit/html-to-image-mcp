@@ -147,15 +147,15 @@ async def take_screenshot(
 
 def main():
     """Main entry point for the server"""
-    # Check if we should run in SSE mode (default for container) or stdio mode
-    transport = os.getenv("MCP_TRANSPORT", "sse")
+    # Check if we should run in streamable-http mode (default for container) or stdio mode
+    transport = os.getenv("MCP_TRANSPORT", "streamable-http")
     
     if transport == "stdio":
         # Run in stdio mode for local development
         server.run(transport="stdio")
     else:
-        # Run in SSE mode for HTTP deployments
-        server.run(transport="sse")
+        # Run in streamable-http mode for HTTP deployments (Smithery-compatible)
+        server.run(transport="streamable-http")
 
 if __name__ == "__main__":
     main()

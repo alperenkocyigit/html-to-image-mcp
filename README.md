@@ -79,12 +79,12 @@ MCP_TRANSPORT=stdio python server.py
 
 The server will run on STDIO transport for local development and testing.
 
-#### For HTTP Deployment (SSE mode)
+#### For HTTP Deployment (Streamable HTTP mode)
 ```bash
 python server.py
 ```
 
-The server will run on HTTP/SSE transport on `http://0.0.0.0:8000`, suitable for container deployments and hosted environments like Smithery.
+The server will run on HTTP transport (streamable-http) on `http://0.0.0.0:8000`, suitable for container deployments and hosted environments like Smithery. The MCP endpoint is available at `/mcp`.
 
 ### Tool: `take_screenshot`
 

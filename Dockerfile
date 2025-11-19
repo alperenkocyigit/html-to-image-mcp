@@ -43,7 +43,7 @@ RUN python setup.py
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port 8000 for HTTP/SSE transport
+# Expose port 8000 for HTTP/streamable-http transport
 EXPOSE 8000
 
 CMD ["python", "server.py"]
